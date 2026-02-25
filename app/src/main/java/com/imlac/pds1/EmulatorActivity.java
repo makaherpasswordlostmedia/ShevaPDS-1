@@ -106,18 +106,20 @@ public class EmulatorActivity extends Activity {
         mpRunning = true;
         mpThread = new Thread(() -> {
             while (mpRunning) {
+                // ALWAYS update keyboard from controller (even when MP halted)
+                int key = 0;
+                if (ctrl[K_UP]) key='W'; else if (ctrl[K_DN]) key='S';
+                else if (ctrl[K_LT]) key='A'; else if (ctrl[K_RT]) key='D';
+                else if (ctrl[K_A])  key=' '; else if (ctrl[K_B])  key='F';
+                else if (ctrl[K_C])  key='E'; else if (ctrl[K_D])  key='Q';
+                machine.keyboard = (key!=0) ? (key|0x8000) : 0;
+
+                // Run MP only when not halted
                 if (!machine.mp_halt && machine.mp_run) {
                     for (int i = 0; i < 10000 && !machine.mp_halt; i++)
                         machine.mpStep();
-                    // Feed controller to keyboard
-                    int key = 0;
-                    if (ctrl[K_UP]) key='W'; else if (ctrl[K_DN]) key='S';
-                    else if (ctrl[K_LT]) key='A'; else if (ctrl[K_RT]) key='D';
-                    else if (ctrl[K_A])  key=' '; else if (ctrl[K_B])  key='F';
-                    else if (ctrl[K_C])  key='E'; else if (ctrl[K_D])  key='Q';
-                    machine.keyboard = (key!=0) ? (key|0x8000) : 0;
                 }
-                try { Thread.sleep(1); } catch (InterruptedException e) { break; }
+                try { Thread.sleep(16); } catch (InterruptedException e) { break; }
             }
         }, "imlac-mp");
         mpThread.setDaemon(true);
@@ -161,7 +163,12 @@ public class EmulatorActivity extends Activity {
         wireDemo(R.id.btn_demo_bounce,    Demos.Type.BOUNCE);
         wireDemo(R.id.btn_demo_maze,      Demos.Type.MAZE);
         wireDemo(R.id.btn_demo_spacewar,  Demos.Type.SPACEWAR);
-        wireDemo(R.id.btn_mazewar,         Demos.Type.MAZEWAR);
+        Button btnMW = findViewById(R.id.btn_mazewar);
+        if (btnMW != null) btnMW.setOnClickListener(v -> {
+            demos.setDemo(Demos.Type.MAZEWAR);
+            machine.mp_halt = true;  // Maze War runs its own loop
+            demos.setMazeWarInput(ctrl);  // share ctrl array with game
+        });
     }
 
     private void wireDemo(int id, Demos.Type type) {

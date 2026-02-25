@@ -90,9 +90,29 @@ public class MazeWarGame {
     private State state = State.TITLE;
     private int   titleFrame = 0;
 
-    // ── Input (set from EmulatorActivity) ─────────────────────
+    // ── Input ─────────────────────────────────────────────────
     private boolean kFwd, kBack, kLeft, kRight, kFire;
     private int     prevKeyboard = 0;
+
+    /** Called from EmulatorActivity with controller state each frame */
+    public void setInput(boolean up, boolean down, boolean left, boolean right,
+                         boolean fire, int keyboard) {
+        kFwd   = up;
+        kBack  = down;
+        kLeft  = left;
+        kRight = right;
+        kFire  = fire;
+
+        // Also accept keyboard for M toggle and any-key on title/dead
+        int k = keyboard & 0x7F;
+        boolean anyNew = (keyboard != 0 && prevKeyboard == 0);
+        if (anyNew) {
+            if (state == State.TITLE) startGame();
+            if (state == State.DEAD)  startGame();
+        }
+        if (k == 'M' && (prevKeyboard & 0x7F) != 'M') showMinimap = !showMinimap;
+        prevKeyboard = keyboard;
+    }
 
     // ── Minimap ───────────────────────────────────────────────
     private boolean showMinimap = false;
@@ -156,7 +176,7 @@ public class MazeWarGame {
     //  PUBLIC API — called by Demos.java each frame
     // ================================================================
     public void update(int keyboard) {
-        readInput(keyboard);
+        readInput(keyboard);  // keyboard fallback only; main input via setInput()
         switch (state) {
             case TITLE:   updateTitle();   break;
             case PLAYING: updatePlaying(); break;
@@ -183,19 +203,13 @@ public class MazeWarGame {
     }
 
     private void readInput(int keyboard) {
+        // Keyboard fallback (only if no controller input)
         int k = keyboard & 0x7F;
-        kFwd   = (k == 'W');
-        kBack  = (k == 'S');
-        kLeft  = (k == 'A');
-        kRight = (k == 'D');
-        kFire  = (k == ' ' || k == 'F');
-
-        if (state == State.TITLE && k != 0 && prevKeyboard == 0) startGame();
-        if (state == State.DEAD  && k != 0 && prevKeyboard == 0) startGame();
-
-        if (keyJustPressed(keyboard, 'M')) showMinimap = !showMinimap;
-
-        prevKeyboard = keyboard;
+        if (!kFwd && !kBack && !kLeft && !kRight) {
+            kFwd   = (k == 'W'); kBack  = (k == 'S');
+            kLeft  = (k == 'A'); kRight = (k == 'D');
+        }
+        if (!kFire) kFire = (k == ' ' || k == 'F');
     }
 
     // ================================================================
@@ -508,7 +522,9 @@ public class MazeWarGame {
         vl(VIEW_X0, VIEW_CY, VIEW_X1, VIEW_CY, 0.08f);
 
         // Render wall columns (raycasting)
-        double playerAngle = pdir * (Math.PI / 2.0);
+        // pdir: 0=North(+Y) 1=East(+X) 2=South(-Y) 3=West(-X)
+        // In math convention: East=0, North=PI/2, West=PI, South=-PI/2
+        double playerAngle = Math.PI / 2.0 - pdir * (Math.PI / 2.0);
         double colW = (double) VIEW_W / N_RAYS;
 
         int prevTopY = -1, prevBotY = -1, prevX = VIEW_X0;
@@ -586,9 +602,10 @@ public class MazeWarGame {
         double dx = wx - (px + 0.5);
         double dy = wy - (py + 0.5);
         // Rotate to camera space (angle offset)
-        double ca = Math.cos(-playerAngle), sa = Math.sin(-playerAngle);
-        double cx =  dx*ca - dy*sa;
-        double cy =  dx*sa + dy*ca;
+        // Camera transform: forward=(cos(PA),sin(PA)), right=(sin(PA),-cos(PA))
+        double cpa = Math.cos(playerAngle), spa = Math.sin(playerAngle);
+        double cx =  dx*spa - dy*cpa;   // screen-X (left/right)
+        double cy =  dx*cpa + dy*spa;   // depth (forward)
 
         proj.valid = false;
         if (cy <= 0.05) return;
@@ -663,10 +680,12 @@ public class MazeWarGame {
             projectPoint(e.gx + 0.5, e.gy + 0.5, playerAngle);
             if (!proj.valid) continue;
 
-            // Wall occlusion check
-            double rayA = playerAngle + Math.atan2((proj.sx - VIEW_CX) * Math.tan(FOV/2) / (VIEW_W/2.0), 1.0);
+            // Wall occlusion: cast ray toward enemy, check if wall is closer
+            double ex2 = e.gx + 0.5 - (px + 0.5);
+            double ey2 = e.gy + 0.5 - (py + 0.5);
+            double rayA = Math.atan2(ey2, ex2);
             castRay(rayA);
-            if (proj.dist > rayHit.dist + 0.4) continue;
+            if (proj.dist > rayHit.dist + 0.5) continue;
 
             float bright = (float) Math.min(0.95, 0.8 / (proj.dist * 0.3 + 0.1));
             drawEyeball(proj.sx, VIEW_CY, (int)(proj.size * 0.55), bright);
