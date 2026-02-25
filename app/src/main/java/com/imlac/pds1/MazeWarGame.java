@@ -93,6 +93,7 @@ public class MazeWarGame {
     // ── Input ─────────────────────────────────────────────────
     private boolean kFwd, kBack, kLeft, kRight, kFire;
     private int     prevKeyboard = 0;
+    private boolean prevAnyKey   = false;
 
     /** Called from EmulatorActivity with controller state each frame */
     public void setInput(boolean up, boolean down, boolean left, boolean right,
@@ -811,9 +812,20 @@ public class MazeWarGame {
     // ================================================================
     //  TITLE SCREEN
     // ================================================================
-    private void updateTitle()   { /* just animate */ }
-    private void updateDead()    { /* wait for key */ }
-    private void updateWin()     { /* wait for key */ }
+    private void updateTitle() {
+        // Any key or button starts the game
+        boolean anyKey = kFwd || kBack || kLeft || kRight || kFire
+                      || (M.keyboard & 0x7F) != 0;
+        if (anyKey && !prevAnyKey) startGame();
+        prevAnyKey = anyKey;
+    }
+    private void updateDead() {
+        boolean anyKey = kFwd || kBack || kLeft || kRight || kFire
+                      || (M.keyboard & 0x7F) != 0;
+        if (anyKey && !prevAnyKey) startGame();
+        prevAnyKey = anyKey;
+    }
+    private void updateWin()  { /* wait for key */ }
 
     private void renderTitle() {
         double t = titleFrame * 0.03;
