@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Emulator screen (SurfaceView for performance) -->
+    <com.imlac.pds1.CrtView
+        android:id="@+id/crt_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+    <!-- Control panel overlay (bottom) -->
+    <LinearLayout
+        android:id="@+id/panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#CC0A0A0A"
+        android:orientation="vertical"
+        android:padding="6dp">
+
+        <!-- Register row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView android:id="@+id/reg_pc"
+                style="@style/RegStyle" android:text="PC:0000"/>
+            <TextView android:id="@+id/reg_ac"
+                style="@style/RegStyle" android:text="AC:0000"/>
+            <TextView android:id="@+id/reg_ir"
+                style="@style/RegStyle" android:text="IR:0000"/>
+            <TextView android:id="@+id/reg_link"
+                style="@style/RegStyle" android:text="L:0"/>
+            <TextView android:id="@+id/reg_dpx"
+                style="@style/RegStyle" android:text="DX:000"/>
+            <TextView android:id="@+id/reg_dpy"
+                style="@style/RegStyle" android:text="DY:000"/>
+            <View android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"/>
+            <TextView android:id="@+id/status_text"
+                style="@style/RegStyle"
+                android:text="HALT"
+                android:textColor="#FF3300"/>
+        </LinearLayout>
+
+        <!-- Button row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="4dp">
+
+            <Button android:id="@+id/btn_power"
+                style="@style/PanelBtn"
+                android:text="POWER"
+                android:backgroundTint="#003300"/>
+            <Button android:id="@+id/btn_reset"
+                style="@style/PanelBtn"
+                android:text="RESET"/>
+            <Button android:id="@+id/btn_run"
+                style="@style/PanelBtn"
+                android:text="RUN"
+                android:backgroundTint="#003300"/>
+            <Button android:id="@+id/btn_halt"
+                style="@style/PanelBtn"
+                android:text="HALT"
+                android:backgroundTint="#330000"/>
+            <Button android:id="@+id/btn_step"
+                style="@style/PanelBtn"
+                android:text="STEP"/>
+
+            <View android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"/>
+
+            <!-- Demo buttons -->
+            <Button android:id="@+id/btn_demo_star"
+                style="@style/DemoBtn" android:text="STAR"/>
+            <Button android:id="@+id/btn_demo_lines"
+                style="@style/DemoBtn" android:text="LINES"/>
+            <Button android:id="@+id/btn_demo_lissajous"
+                style="@style/DemoBtn" android:text="LISS"/>
+            <Button android:id="@+id/btn_demo_bounce"
+                style="@style/DemoBtn" android:text="BNCE"/>
+            <Button android:id="@+id/btn_demo_maze"
+                style="@style/DemoBtn" android:text="MAZE"/>
+            <Button android:id="@+id/btn_demo_spacewar"
+                style="@style/DemoBtn" android:text="SWAR"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+</FrameLayout>
