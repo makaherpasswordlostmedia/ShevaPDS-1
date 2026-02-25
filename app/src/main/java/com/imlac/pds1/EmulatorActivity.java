@@ -167,7 +167,7 @@ public class EmulatorActivity extends Activity {
         if (btnMW != null) btnMW.setOnClickListener(v -> {
             demos.setDemo(Demos.Type.MAZEWAR);
             machine.mp_halt = true;  // Maze War runs its own loop
-            demos.setMazeWarInput(ctrl);  // share ctrl array with game
+
         });
     }
 
