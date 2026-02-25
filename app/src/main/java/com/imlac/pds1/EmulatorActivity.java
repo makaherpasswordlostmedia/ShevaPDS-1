@@ -161,6 +161,7 @@ public class EmulatorActivity extends Activity {
         wireDemo(R.id.btn_demo_bounce,    Demos.Type.BOUNCE);
         wireDemo(R.id.btn_demo_maze,      Demos.Type.MAZE);
         wireDemo(R.id.btn_demo_spacewar,  Demos.Type.SPACEWAR);
+        wireDemo(R.id.btn_mazewar,         Demos.Type.MAZEWAR);
     }
 
     private void wireDemo(int id, Demos.Type type) {

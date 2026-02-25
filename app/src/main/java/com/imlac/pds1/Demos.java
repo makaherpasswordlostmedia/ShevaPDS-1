@@ -8,7 +8,7 @@ package com.imlac.pds1;
 public class Demos {
 
     public enum Type {
-        LINES, STAR, LISSAJOUS, TEXT, BOUNCE, MAZE, SPACEWAR, SCOPE, USER_ASM
+        LINES, STAR, LISSAJOUS, TEXT, BOUNCE, MAZE, SPACEWAR, SCOPE, USER_ASM, MAZEWAR
     }
 
     private final Machine M;
@@ -36,6 +36,9 @@ public class Demos {
 
     private double textScroll = 0;
 
+    // Maze War game instance
+    private MazeWarGame mazeWarGame = null;
+
     public Demos(Machine machine) { this.M = machine; }
 
     public void setDemo(Type t) { this.current = t; }
@@ -52,6 +55,7 @@ public class Demos {
             case SPACEWAR:  demoSpacewar();  break;
             case SCOPE:     demoScope();     break;
         case USER_ASM:  /* MP runs, display list already populated */ break;
+        case MAZEWAR:   demoMazeWar();  break;
         }
         angle += 0.018;
         t     += 0.016;
@@ -347,4 +351,11 @@ public class Demos {
         border(0.4f);
         vtext("SCOPE",380,60,14,0.5f);
     }
+    // ── MAZE WAR ──────────────────────────────────────────────
+    private void demoMazeWar() {
+        if (mazeWarGame == null) mazeWarGame = new MazeWarGame(M);
+        mazeWarGame.update(M.keyboard);
+        mazeWarGame.render();
+    }
+
 }
