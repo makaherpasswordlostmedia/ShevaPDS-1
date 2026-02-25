@@ -1,9 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Layout: landscape orientation
-  Left side: CRT screen
-  Right side: control panel (registers, buttons, d-pad, action buttons)
--->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -22,7 +17,6 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
 
-        <!-- FPS overlay top-left -->
         <TextView
             android:id="@+id/tv_fps"
             android:layout_width="wrap_content"
@@ -30,33 +24,30 @@
             android:layout_gravity="top|start"
             android:layout_margin="6dp"
             android:text="30fps"
-            android:textColor="#335533"
+            android:textColor="#224422"
             android:textSize="9sp"
             android:fontFamily="monospace"/>
-
     </FrameLayout>
 
     <!-- ===== RIGHT: Control Panel ===== -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="1.4"
+        android:layout_weight="1.35"
         android:orientation="vertical"
-        android:background="#0C0C0C"
-        android:paddingStart="6dp"
-        android:paddingEnd="6dp"
-        android:paddingTop="4dp"
-        android:paddingBottom="4dp">
+        android:background="#0A0A0A"
+        android:paddingStart="5dp"
+        android:paddingEnd="5dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp">
 
-        <!-- ── REGISTER STRIP ── -->
+        <!-- REGISTERS -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:background="#050505"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp">
-
+            android:padding="2dp">
             <TextView android:id="@+id/reg_pc"   style="@style/RegStyle" android:text="PC:0000"/>
             <TextView android:id="@+id/reg_ac"   style="@style/RegStyle" android:text="AC:0000"/>
             <TextView android:id="@+id/reg_ir"   style="@style/RegStyle" android:text="IR:0000"/>
@@ -68,31 +59,34 @@
                 android:text="HALT" android:textColor="#FF3300"/>
         </LinearLayout>
 
-        <!-- ── FPS SLIDER ── -->
+        <!-- FPS SLIDER -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:layout_marginTop="3dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="FPS" android:textColor="#333333" android:textSize="8sp"
-                android:fontFamily="monospace" android:layout_marginEnd="4dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="FPS " android:textColor="#333333"
+                android:textSize="8sp" android:fontFamily="monospace"/>
             <SeekBar
                 android:id="@+id/sb_fps"
-                android:layout_width="0dp" android:layout_height="20dp"
+                android:layout_width="0dp"
+                android:layout_height="18dp"
                 android:layout_weight="1"
                 android:max="59" android:progress="29"
                 android:progressTint="#004400"
                 android:thumbTint="#00AA22"/>
         </LinearLayout>
 
-        <!-- ── MACHINE BUTTONS ── -->
+        <!-- MACHINE BUTTONS -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="4dp">
+            android:layout_marginTop="3dp">
             <Button android:id="@+id/btn_power" style="@style/PanelBtn"
                 android:text="PWR" android:backgroundTint="#002200"/>
             <Button android:id="@+id/btn_reset" style="@style/PanelBtn" android:text="RST"/>
@@ -103,7 +97,7 @@
             <Button android:id="@+id/btn_step"  style="@style/PanelBtn" android:text="STP"/>
         </LinearLayout>
 
-        <!-- ── DEMO BUTTONS ── -->
+        <!-- DEMO BUTTONS -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -117,118 +111,181 @@
             <Button android:id="@+id/btn_demo_spacewar"  style="@style/DemoBtn" android:text="SWAR"/>
         </LinearLayout>
 
-        <!-- ── GAMES BUTTON ── -->
+        <!-- GAMES BUTTON -->
         <Button
             android:id="@+id/btn_games"
             android:layout_width="match_parent"
-            android:layout_height="28dp"
+            android:layout_height="26dp"
             android:text="GAMES / PROGRAMS"
             android:textColor="#4488FF"
             android:textSize="8sp"
             android:fontFamily="monospace"
-            android:backgroundTint="#050510"
-            android:layout_marginTop="4dp"/>
+            android:backgroundTint="#05050F"
+            android:layout_marginTop="3dp"/>
 
-        <!-- ── DIVIDER ── -->
+        <!-- DIVIDER -->
         <View android:layout_width="match_parent" android:layout_height="1dp"
-            android:background="#1A1A1A" android:layout_marginTop="6dp"
+            android:background="#181818"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp"/>
+
+        <!-- CONTROLLER LABEL -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CONTROLLER"
+            android:textColor="#222222"
+            android:textSize="7sp"
+            android:fontFamily="monospace"
             android:layout_marginBottom="4dp"/>
 
-        <!-- ── VIRTUAL CONTROLLER ── -->
-        <!-- Label -->
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="CONTROLLER" android:textColor="#222222"
-            android:textSize="7sp" android:fontFamily="monospace"
-            android:layout_marginBottom="2dp"/>
-
-        <!-- D-Pad + Action buttons side by side -->
+        <!-- CONTROLLER ROW: D-PAD left, ACTION BUTTONS right -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:orientation="horizontal">
 
-            <!-- D-PAD -->
-            <GridLayout
+            <!-- D-PAD: 3x3 grid using nested LinearLayouts -->
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:rowCount="3"
-                android:columnCount="3"
-                android:layout_marginEnd="8dp">
+                android:orientation="vertical"
+                android:layout_marginEnd="6dp">
 
-                <!-- Row 0 -->
-                <View android:layout_width="0dp" android:layout_height="0dp"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"/>
-                <Button android:id="@+id/dp_up"
-                    style="@style/DpadBtn" android:text="▲"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"/>
-                <View android:layout_width="0dp" android:layout_height="0dp"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"/>
+                <!-- Row 1: [empty] [UP] [empty] -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+                    <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
+                    <Button
+                        android:id="@+id/dp_up"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="▲"
+                        style="@style/DpadBtn"/>
+                    <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
+                </LinearLayout>
 
-                <!-- Row 1 -->
-                <Button android:id="@+id/dp_left"
-                    style="@style/DpadBtn" android:text="◀"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"/>
-                <!-- Center: empty or label -->
-                <TextView android:layout_width="0dp" android:layout_height="0dp"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"
-                    android:text="·" android:gravity="center"
-                    android:textColor="#222222" android:textSize="14sp"/>
-                <Button android:id="@+id/dp_right"
-                    style="@style/DpadBtn" android:text="▶"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"/>
+                <!-- Row 2: [LEFT] [center dot] [RIGHT] -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+                    <Button
+                        android:id="@+id/dp_left"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="◀"
+                        style="@style/DpadBtn"/>
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="#0A150A"/>
+                    <Button
+                        android:id="@+id/dp_right"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="▶"
+                        style="@style/DpadBtn"/>
+                </LinearLayout>
 
-                <!-- Row 2 -->
-                <View android:layout_width="0dp" android:layout_height="0dp"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"/>
-                <Button android:id="@+id/dp_down"
-                    style="@style/DpadBtn" android:text="▼"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"/>
-                <View android:layout_width="0dp" android:layout_height="0dp"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"/>
+                <!-- Row 3: [empty] [DOWN] [empty] -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+                    <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
+                    <Button
+                        android:id="@+id/dp_down"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="▼"
+                        style="@style/DpadBtn"/>
+                    <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
+                </LinearLayout>
 
-            </GridLayout>
+            </LinearLayout>
 
-            <!-- ACTION BUTTONS (A B C D) -->
-            <GridLayout
+            <!-- ACTION BUTTONS: 2x2 grid -->
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:rowCount="2"
-                android:columnCount="2">
+                android:orientation="vertical">
 
-                <Button android:id="@+id/btn_b"
-                    style="@style/ActionBtn"
-                    android:text="B" android:backgroundTint="#001A33"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"/>
-                <Button android:id="@+id/btn_a"
-                    style="@style/ActionBtn"
-                    android:text="A" android:backgroundTint="#001A00"
-                    android:textColor="#00FF41"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"/>
-                <Button android:id="@+id/btn_d"
-                    style="@style/ActionBtn"
-                    android:text="D" android:backgroundTint="#1A1A00"
-                    android:textColor="#FFAA00"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"/>
-                <Button android:id="@+id/btn_c"
-                    style="@style/ActionBtn"
-                    android:text="C" android:backgroundTint="#1A0000"
-                    android:textColor="#FF4400"
-                    android:layout_columnWeight="1" android:layout_rowWeight="1"/>
+                <!-- Top row: B | A -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+                    <Button
+                        android:id="@+id/btn_b"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="B"
+                        android:textColor="#4466AA"
+                        android:backgroundTint="#00081A"
+                        style="@style/ActionBtn"/>
+                    <Button
+                        android:id="@+id/btn_a"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="A"
+                        android:textColor="#00FF41"
+                        android:backgroundTint="#001800"
+                        style="@style/ActionBtn"/>
+                </LinearLayout>
 
-            </GridLayout>
+                <!-- Bottom row: D | C -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+                    <Button
+                        android:id="@+id/btn_d"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="D"
+                        android:textColor="#FFAA00"
+                        android:backgroundTint="#150F00"
+                        style="@style/ActionBtn"/>
+                    <Button
+                        android:id="@+id/btn_c"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="C"
+                        android:textColor="#FF4400"
+                        android:backgroundTint="#150000"
+                        style="@style/ActionBtn"/>
+                </LinearLayout>
+
+            </LinearLayout>
 
         </LinearLayout>
 
-        <!-- ── KEY MAP HINT ── -->
+        <!-- KEY HINT -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="A=SPACE  B=F  C=E  D=Q\nW/S/A/D = move"
-            android:textColor="#1A1A1A"
+            android:text="A=SPACE  B=F  C=E  D=Q  |  ▲▼◀▶=WASD"
+            android:textColor="#1C1C1C"
             android:textSize="7sp"
             android:fontFamily="monospace"
             android:layout_marginTop="3dp"/>
