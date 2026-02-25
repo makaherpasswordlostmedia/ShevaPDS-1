@@ -8,7 +8,7 @@ package com.imlac.pds1;
 public class Demos {
 
     public enum Type {
-        LINES, STAR, LISSAJOUS, TEXT, BOUNCE, MAZE, SPACEWAR, SCOPE
+        LINES, STAR, LISSAJOUS, TEXT, BOUNCE, MAZE, SPACEWAR, SCOPE, USER_ASM
     }
 
     private final Machine M;
@@ -51,6 +51,7 @@ public class Demos {
             case MAZE:      demoMaze();      break;
             case SPACEWAR:  demoSpacewar();  break;
             case SCOPE:     demoScope();     break;
+        case USER_ASM:  /* MP runs, display list already populated */ break;
         }
         angle += 0.018;
         t     += 0.016;

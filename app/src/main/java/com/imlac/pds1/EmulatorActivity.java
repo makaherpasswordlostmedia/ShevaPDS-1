@@ -1,103 +1,121 @@
 package com.imlac.pds1;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.*;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.view.KeyEvent;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.WindowManager;
-import android.widget.Button;
-import android.widget.TextView;
+import android.view.*;
+import android.widget.*;
+import java.util.List;
 
-/**
- * Main Activity — wires together the Machine, Demos, and CrtView.
- * Runs the Main Processor on a background thread.
- * UI updates (registers) happen at 10Hz on the main thread.
- */
 public class EmulatorActivity extends Activity {
 
-    private Machine  machine;
-    private Demos    demos;
-    private CrtView  crtView;
+    private Machine    machine;
+    private Demos      demos;
+    private CrtView    crtView;
+    private GameLoader gameLoader;
 
     private Thread   mpThread;
     private volatile boolean mpRunning = false;
 
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
-    private Runnable regUpdater;
+    private TextView tvPC, tvAC, tvIR, tvLink, tvDPX, tvDPY, tvStatus, tvFps;
+    private SeekBar  sbFps;
+    private int      targetFps = 30;
 
-    // ── Lifecycle ────────────────────────────────────────────
+    // Virtual controller
+    private final boolean[] ctrl = new boolean[8];
+    private static final int K_UP=0,K_DN=1,K_LT=2,K_RT=3,K_A=4,K_B=5,K_C=6,K_D=7;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // Full screen immersive
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        getWindow().getDecorView().setSystemUiVisibility(
-            View.SYSTEM_UI_FLAG_FULLSCREEN |
-            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
-
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+                             WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        hideSystemUI();
         setContentView(R.layout.activity_emulator);
 
-        machine = new Machine();
-        demos   = new Demos(machine);
+        machine    = new Machine();
+        demos      = new Demos(machine);
+        gameLoader = new GameLoader(this);
 
         crtView = findViewById(R.id.crt_view);
         crtView.setMachine(machine, demos);
+        crtView.setMaxFps(30);
 
-        // Touch → light pen
+        findViews();
+        wireControlPanel();
+        wireVirtualController();
+        wireGameMenu();
+        startRegUpdater();
+
         crtView.setOnTouchListener((v, ev) -> {
-            if (ev.getAction() == MotionEvent.ACTION_DOWN ||
-                ev.getAction() == MotionEvent.ACTION_MOVE) {
-                int[] pds = crtView.screenToPDS(ev.getX(), ev.getY());
-                machine.lpen_x = pds[0];
-                machine.lpen_y = pds[1];
-                if (ev.getAction() == MotionEvent.ACTION_DOWN)
-                    machine.lpen_hit = true;
-            } else if (ev.getAction() == MotionEvent.ACTION_UP) {
-                machine.lpen_hit = false;
-            }
+            int[] p = crtView.screenToPDS(ev.getX(), ev.getY());
+            machine.lpen_x = p[0]; machine.lpen_y = p[1];
+            machine.lpen_hit = (ev.getAction() != MotionEvent.ACTION_UP);
             return true;
         });
 
-        wireButtons();
-        startRegUpdater();
-
-        // Boot: load star demo immediately
         demos.setDemo(Demos.Type.STAR);
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // Re-hide nav on resume
+    @Override protected void onResume()  { super.onResume(); hideSystemUI(); }
+    @Override protected void onDestroy() { super.onDestroy(); stopMP(); uiHandler.removeCallbacksAndMessages(null); }
+
+    private void hideSystemUI() {
         getWindow().getDecorView().setSystemUiVisibility(
-            View.SYSTEM_UI_FLAG_FULLSCREEN |
-            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+            View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        stopMP();
-        uiHandler.removeCallbacks(regUpdater);
+    private void findViews() {
+        tvPC   = findViewById(R.id.reg_pc);
+        tvAC   = findViewById(R.id.reg_ac);
+        tvIR   = findViewById(R.id.reg_ir);
+        tvLink = findViewById(R.id.reg_link);
+        tvDPX  = findViewById(R.id.reg_dpx);
+        tvDPY  = findViewById(R.id.reg_dpy);
+        tvStatus = findViewById(R.id.status_text);
+        tvFps  = findViewById(R.id.tv_fps);
+        sbFps  = findViewById(R.id.sb_fps);
     }
 
-    // ── Main Processor thread ─────────────────────────────────
+    private void startRegUpdater() {
+        uiHandler.postDelayed(new Runnable() {
+            @Override public void run() {
+                if (tvPC == null) return;
+                tvPC  .setText(String.format("PC:%04X", machine.mp_pc));
+                tvAC  .setText(String.format("AC:%04X", machine.mp_ac));
+                tvIR  .setText(String.format("IR:%04X", machine.mp_ir));
+                tvLink.setText(String.format("L:%d",    machine.mp_link));
+                tvDPX .setText(String.format("DX:%03X", machine.dp_x));
+                tvDPY .setText(String.format("DY:%03X", machine.dp_y));
+                tvStatus.setText(machine.mp_halt ? "HALT" : "RUN ");
+                tvStatus.setTextColor(machine.mp_halt ? 0xFFFF3300 : 0xFF00FF41);
+                if (tvFps != null) tvFps.setText(String.format("%.0f/"+targetFps+"fps", crtView.getActualFps()));
+                uiHandler.postDelayed(this, 100);
+            }
+        }, 100);
+    }
+
     private void startMP() {
         stopMP();
         mpRunning = true;
         mpThread = new Thread(() -> {
             while (mpRunning) {
                 if (!machine.mp_halt && machine.mp_run) {
-                    // Run ~10000 cycles per burst, then yield
-                    for (int i = 0; i < 10000 && !machine.mp_halt; i++) {
+                    for (int i = 0; i < 10000 && !machine.mp_halt; i++)
                         machine.mpStep();
-                    }
+                    // Feed controller to keyboard
+                    int key = 0;
+                    if (ctrl[K_UP]) key='W'; else if (ctrl[K_DN]) key='S';
+                    else if (ctrl[K_LT]) key='A'; else if (ctrl[K_RT]) key='D';
+                    else if (ctrl[K_A])  key=' '; else if (ctrl[K_B])  key='F';
+                    else if (ctrl[K_C])  key='E'; else if (ctrl[K_D])  key='Q';
+                    machine.keyboard = (key!=0) ? (key|0x8000) : 0;
                 }
                 try { Thread.sleep(1); } catch (InterruptedException e) { break; }
             }
@@ -108,155 +126,170 @@ public class EmulatorActivity extends Activity {
 
     private void stopMP() {
         mpRunning = false;
-        if (mpThread != null) {
-            try { mpThread.join(300); } catch (InterruptedException ignored) {}
-        }
+        if (mpThread != null) try { mpThread.join(300); } catch (InterruptedException ignored) {}
     }
 
-    // ── Register display updater (10Hz) ───────────────────────
-    private void startRegUpdater() {
-        TextView regPC   = findViewById(R.id.reg_pc);
-        TextView regAC   = findViewById(R.id.reg_ac);
-        TextView regIR   = findViewById(R.id.reg_ir);
-        TextView regLink = findViewById(R.id.reg_link);
-        TextView regDPX  = findViewById(R.id.reg_dpx);
-        TextView regDPY  = findViewById(R.id.reg_dpy);
-        TextView status  = findViewById(R.id.status_text);
+    private void wireControlPanel() {
+        Button btnPwr  = findViewById(R.id.btn_power);
+        Button btnRst  = findViewById(R.id.btn_reset);
+        Button btnRun  = findViewById(R.id.btn_run);
+        Button btnHalt = findViewById(R.id.btn_halt);
+        Button btnStep = findViewById(R.id.btn_step);
 
-        regUpdater = new Runnable() {
-            @Override public void run() {
-                regPC  .setText(String.format("PC:%04X",  machine.mp_pc));
-                regAC  .setText(String.format("AC:%04X",  machine.mp_ac));
-                regIR  .setText(String.format("IR:%04X",  machine.mp_ir));
-                regLink.setText(String.format("L:%d",     machine.mp_link));
-                regDPX .setText(String.format("DX:%03X",  machine.dp_x));
-                regDPY .setText(String.format("DY:%03X",  machine.dp_y));
+        if (btnPwr  != null) btnPwr .setOnClickListener(v -> { machine.powerOn(); startMP(); });
+        if (btnRst  != null) btnRst .setOnClickListener(v -> { machine.reset(); machine.mp_halt=false; machine.mp_run=true; });
+        if (btnRun  != null) btnRun .setOnClickListener(v -> { machine.mp_halt=false; machine.mp_run=true; startMP(); });
+        if (btnHalt != null) btnHalt.setOnClickListener(v -> { machine.mp_halt=true; machine.mp_run=false; });
+        if (btnStep != null) btnStep.setOnClickListener(v -> { machine.mp_halt=false; machine.mpStep(); machine.mp_halt=true; });
 
-                if (machine.mp_halt) {
-                    status.setText("HALT");
-                    status.setTextColor(0xFFFF3300);
-                } else {
-                    status.setText("RUN");
-                    status.setTextColor(0xFF00FF41);
+        if (sbFps != null) {
+            sbFps.setMax(59);
+            sbFps.setProgress(29);
+            sbFps.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                public void onProgressChanged(SeekBar s, int p, boolean u) {
+                    targetFps = p+1;
+                    crtView.setMaxFps(targetFps);
                 }
-
-                uiHandler.postDelayed(this, 100); // 10 Hz
-            }
-        };
-        uiHandler.post(regUpdater);
-    }
-
-    // ── Button wiring ─────────────────────────────────────────
-    private void wireButtons() {
-        // Control buttons
-        Button btnPower = findViewById(R.id.btn_power);
-        Button btnReset = findViewById(R.id.btn_reset);
-        Button btnRun   = findViewById(R.id.btn_run);
-        Button btnHalt  = findViewById(R.id.btn_halt);
-        Button btnStep  = findViewById(R.id.btn_step);
-
-        btnPower.setOnClickListener(v -> {
-            machine.powerOn();
-            startMP();
-        });
-
-        btnReset.setOnClickListener(v -> {
-            machine.reset();
-            machine.mp_halt = false;
-            machine.mp_run  = true;
-        });
-
-        btnRun.setOnClickListener(v -> {
-            machine.mp_halt = false;
-            machine.mp_run  = true;
-            startMP();
-        });
-
-        btnHalt.setOnClickListener(v -> {
-            machine.mp_halt = true;
-            machine.mp_run  = false;
-        });
-
-        btnStep.setOnClickListener(v -> {
-            machine.mp_halt = false;
-            machine.mpStep();
-            machine.mp_halt = true;
-        });
-
-        // Demo buttons
-        wireDemo(R.id.btn_demo_star,       Demos.Type.STAR);
-        wireDemo(R.id.btn_demo_lines,      Demos.Type.LINES);
-        wireDemo(R.id.btn_demo_lissajous,  Demos.Type.LISSAJOUS);
-        wireDemo(R.id.btn_demo_bounce,     Demos.Type.BOUNCE);
-        wireDemo(R.id.btn_demo_maze,       Demos.Type.MAZE);
-        wireDemo(R.id.btn_demo_spacewar,   Demos.Type.SPACEWAR);
-    }
-
-    private void wireDemo(int btnId, Demos.Type type) {
-        Button b = findViewById(btnId);
-        if (b == null) return;
-        b.setOnClickListener(v -> {
-            demos.setDemo(type);
-            machine.mp_halt = true; // demos run independently
-        });
-    }
-
-    // ── Hardware keyboard ─────────────────────────────────────
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // Map Android key codes to PDS-1 6-bit ASCII
-        int ascii = 0;
-        switch (keyCode) {
-            case KeyEvent.KEYCODE_A: ascii = 'A'; break;
-            case KeyEvent.KEYCODE_B: ascii = 'B'; break;
-            case KeyEvent.KEYCODE_C: ascii = 'C'; break;
-            case KeyEvent.KEYCODE_D: ascii = 'D'; break;
-            case KeyEvent.KEYCODE_E: ascii = 'E'; break;
-            case KeyEvent.KEYCODE_F: ascii = 'F'; break;
-            case KeyEvent.KEYCODE_G: ascii = 'G'; break;
-            case KeyEvent.KEYCODE_H: ascii = 'H'; break;
-            case KeyEvent.KEYCODE_I: ascii = 'I'; break;
-            case KeyEvent.KEYCODE_J: ascii = 'J'; break;
-            case KeyEvent.KEYCODE_K: ascii = 'K'; break;
-            case KeyEvent.KEYCODE_L: ascii = 'L'; break;
-            case KeyEvent.KEYCODE_M: ascii = 'M'; break;
-            case KeyEvent.KEYCODE_N: ascii = 'N'; break;
-            case KeyEvent.KEYCODE_O: ascii = 'O'; break;
-            case KeyEvent.KEYCODE_P: ascii = 'P'; break;
-            case KeyEvent.KEYCODE_Q: ascii = 'Q'; break;
-            case KeyEvent.KEYCODE_R: ascii = 'R'; break;
-            case KeyEvent.KEYCODE_S: ascii = 'S'; break;
-            case KeyEvent.KEYCODE_T: ascii = 'T'; break;
-            case KeyEvent.KEYCODE_U: ascii = 'U'; break;
-            case KeyEvent.KEYCODE_V: ascii = 'V'; break;
-            case KeyEvent.KEYCODE_W: ascii = 'W'; break;
-            case KeyEvent.KEYCODE_X: ascii = 'X'; break;
-            case KeyEvent.KEYCODE_Y: ascii = 'Y'; break;
-            case KeyEvent.KEYCODE_Z: ascii = 'Z'; break;
-            case KeyEvent.KEYCODE_0: ascii = '0'; break;
-            case KeyEvent.KEYCODE_1: ascii = '1'; break;
-            case KeyEvent.KEYCODE_2: ascii = '2'; break;
-            case KeyEvent.KEYCODE_3: ascii = '3'; break;
-            case KeyEvent.KEYCODE_4: ascii = '4'; break;
-            case KeyEvent.KEYCODE_5: ascii = '5'; break;
-            case KeyEvent.KEYCODE_6: ascii = '6'; break;
-            case KeyEvent.KEYCODE_7: ascii = '7'; break;
-            case KeyEvent.KEYCODE_8: ascii = '8'; break;
-            case KeyEvent.KEYCODE_9: ascii = '9'; break;
-            case KeyEvent.KEYCODE_SPACE:     ascii = ' ';  break;
-            case KeyEvent.KEYCODE_ENTER:     ascii = '\r'; break;
-            case KeyEvent.KEYCODE_DEL:       ascii = 0x08; break;
-            case KeyEvent.KEYCODE_ESCAPE:    ascii = 0x1B; break;
-            default:
-                return super.onKeyDown(keyCode, event);
+                public void onStartTrackingTouch(SeekBar s) {}
+                public void onStopTrackingTouch(SeekBar s)  {}
+            });
         }
-        machine.keyboard = ascii | 0x8000; // flag: key ready
-        return true;
+
+        wireDemo(R.id.btn_demo_star,      Demos.Type.STAR);
+        wireDemo(R.id.btn_demo_lines,     Demos.Type.LINES);
+        wireDemo(R.id.btn_demo_lissajous, Demos.Type.LISSAJOUS);
+        wireDemo(R.id.btn_demo_bounce,    Demos.Type.BOUNCE);
+        wireDemo(R.id.btn_demo_maze,      Demos.Type.MAZE);
+        wireDemo(R.id.btn_demo_spacewar,  Demos.Type.SPACEWAR);
     }
 
-    @Override
-    public boolean onKeyUp(int keyCode, KeyEvent event) {
-        machine.keyboard = 0;
-        return super.onKeyUp(keyCode, event);
+    private void wireDemo(int id, Demos.Type type) {
+        Button b = findViewById(id);
+        if (b!=null) b.setOnClickListener(v -> { demos.setDemo(type); machine.mp_halt=true; });
+    }
+
+    @SuppressWarnings("ClickableViewAccessibility")
+    private void wireVirtualController() {
+        wireDpad(R.id.dp_up,    K_UP);
+        wireDpad(R.id.dp_down,  K_DN);
+        wireDpad(R.id.dp_left,  K_LT);
+        wireDpad(R.id.dp_right, K_RT);
+        wireDpad(R.id.btn_a,    K_A);
+        wireDpad(R.id.btn_b,    K_B);
+        wireDpad(R.id.btn_c,    K_C);
+        wireDpad(R.id.btn_d,    K_D);
+    }
+
+    @SuppressWarnings("ClickableViewAccessibility")
+    private void wireDpad(int id, int ki) {
+        View v = findViewById(id);
+        if (v==null) return;
+        v.setOnTouchListener((vv, ev) -> {
+            boolean down = ev.getAction()==MotionEvent.ACTION_DOWN||ev.getAction()==MotionEvent.ACTION_MOVE;
+            ctrl[ki] = down;
+            vv.setAlpha(down ? 0.45f : 1.0f);
+            return true;
+        });
+    }
+
+    private void wireGameMenu() {
+        Button b = findViewById(R.id.btn_games);
+        if (b!=null) b.setOnClickListener(v -> showGameMenu());
+    }
+
+    private void showGameMenu() {
+        List<GameLoader.Game> list = gameLoader.getGames();
+        String[] items = new String[list.size()+3];
+        items[0] = "+ New game";
+        items[1] = "Example: Counter";
+        items[2] = "Example: Draw Box";
+        for (int i=0;i<list.size();i++) items[i+3] = list.get(i).name;
+
+        new AlertDialog.Builder(this)
+            .setTitle("Games / Programs")
+            .setItems(items, (d,w) -> {
+                if (w==0) showEditorDialog(null);
+                else if (w==1) showEditorDialog(new GameLoader.Game("counter",GameLoader.EXAMPLE_COUNTER,"Binary counter"));
+                else if (w==2) showEditorDialog(new GameLoader.Game("drawbox",GameLoader.EXAMPLE_DRAW_BOX,"Draw a box"));
+                else showGameOptions(list.get(w-3));
+            })
+            .setNegativeButton("Close",null).show();
+    }
+
+    private void showGameOptions(GameLoader.Game g) {
+        new AlertDialog.Builder(this)
+            .setTitle(g.name)
+            .setMessage(g.desc.isEmpty() ? "(no description)" : g.desc)
+            .setPositiveButton("Run",    (d,w) -> runGame(g))
+            .setNeutralButton ("Edit",   (d,w) -> showEditorDialog(g))
+            .setNegativeButton("Delete", (d,w) -> { gameLoader.deleteGame(g.name); })
+            .show();
+    }
+
+    private void showEditorDialog(GameLoader.Game existing) {
+        View dlgView = getLayoutInflater().inflate(R.layout.dialog_editor, null);
+        EditText etName   = dlgView.findViewById(R.id.et_name);
+        EditText etDesc   = dlgView.findViewById(R.id.et_desc);
+        EditText etSource = dlgView.findViewById(R.id.et_source);
+
+        if (existing!=null) {
+            etName  .setText(existing.name);
+            etDesc  .setText(existing.desc);
+            etSource.setText(existing.source);
+        } else {
+            etSource.setText("; Imlac PDS-1 Assembly\n; WASD=move  SPACE=fire\n\n        ORG 0050\nSTART:  NOP\n        JMP START\n");
+        }
+
+        new AlertDialog.Builder(this)
+            .setTitle(existing==null ? "New Game" : "Edit: "+existing.name)
+            .setView(dlgView)
+            .setPositiveButton("Save & Run", (d,w) -> {
+                String name = etName.getText().toString().trim();
+                if (name.isEmpty()) name="untitled";
+                gameLoader.saveGame(name, etSource.getText().toString(), etDesc.getText().toString());
+                GameLoader.Game saved = gameLoader.findGame(name);
+                if (saved!=null) runGame(saved);
+            })
+            .setNeutralButton("Save only", (d,w) -> {
+                String name = etName.getText().toString().trim();
+                if (name.isEmpty()) name="untitled";
+                gameLoader.saveGame(name, etSource.getText().toString(), etDesc.getText().toString());
+                Toast.makeText(this,"Saved",Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("Cancel",null).show();
+    }
+
+    private void runGame(GameLoader.Game g) {
+        machine.reset();
+        int words = machine.assemble(g.source);
+        machine.mp_pc = 0x050;
+        machine.mp_halt = false;
+        machine.mp_run  = true;
+        demos.setDemo(Demos.Type.USER_ASM);
+        startMP();
+        Toast.makeText(this, g.name+" ("+words+" words)", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override public boolean onKeyDown(int kc, KeyEvent ev) {
+        int a = keyToAscii(kc);
+        if (a!=0) { machine.keyboard=a|0x8000; return true; }
+        return super.onKeyDown(kc,ev);
+    }
+    @Override public boolean onKeyUp(int kc, KeyEvent ev) {
+        machine.keyboard=0; return super.onKeyUp(kc,ev);
+    }
+    private int keyToAscii(int kc) {
+        if (kc>=KeyEvent.KEYCODE_A&&kc<=KeyEvent.KEYCODE_Z) return 'A'+(kc-KeyEvent.KEYCODE_A);
+        if (kc>=KeyEvent.KEYCODE_0&&kc<=KeyEvent.KEYCODE_9) return '0'+(kc-KeyEvent.KEYCODE_0);
+        switch(kc){
+            case KeyEvent.KEYCODE_SPACE: return ' ';
+            case KeyEvent.KEYCODE_ENTER: return '\r';
+            case KeyEvent.KEYCODE_DEL:   return 8;
+            case KeyEvent.KEYCODE_DPAD_UP:    return 'W';
+            case KeyEvent.KEYCODE_DPAD_DOWN:  return 'S';
+            case KeyEvent.KEYCODE_DPAD_LEFT:  return 'A';
+            case KeyEvent.KEYCODE_DPAD_RIGHT: return 'D';
+        }
+        return 0;
     }
 }
