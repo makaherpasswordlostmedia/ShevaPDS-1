@@ -111,17 +111,37 @@
             <Button android:id="@+id/btn_demo_spacewar"  style="@style/DemoBtn" android:text="SWAR"/>
         </LinearLayout>
 
-        <!-- GAMES BUTTON -->
-        <Button
-            android:id="@+id/btn_games"
+        <!-- MAZE WAR + GAMES buttons side by side -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="26dp"
-            android:text="GAMES / PROGRAMS"
-            android:textColor="#4488FF"
-            android:textSize="8sp"
-            android:fontFamily="monospace"
-            android:backgroundTint="#05050F"
-            android:layout_marginTop="3dp"/>
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="3dp">
+
+            <Button
+                android:id="@+id/btn_mazewar"
+                android:layout_width="0dp"
+                android:layout_height="26dp"
+                android:layout_weight="1"
+                android:text="MAZE WAR"
+                android:textColor="#00FF41"
+                android:textSize="8sp"
+                android:fontFamily="monospace"
+                android:backgroundTint="#001800"
+                android:layout_marginEnd="2dp"/>
+
+            <Button
+                android:id="@+id/btn_games"
+                android:layout_width="0dp"
+                android:layout_height="26dp"
+                android:layout_weight="1"
+                android:text="GAMES"
+                android:textColor="#4488FF"
+                android:textSize="8sp"
+                android:fontFamily="monospace"
+                android:backgroundTint="#05050F"/>
+
+        </LinearLayout>
 
         <!-- DIVIDER -->
         <View android:layout_width="match_parent" android:layout_height="1dp"
