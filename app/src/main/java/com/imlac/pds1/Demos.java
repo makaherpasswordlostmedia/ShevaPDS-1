@@ -38,6 +38,7 @@ public class Demos {
 
     // Maze War game instance
     private MazeWarGame mazeWarGame = null;
+    public MazeWarGame getMazeWarGame() { return mazeWarGame; }
 
     public Demos(Machine machine) { this.M = machine; }
 
@@ -354,8 +355,8 @@ public class Demos {
     // ── MAZE WAR ──────────────────────────────────────────────
     private void demoMazeWar() {
         if (mazeWarGame == null) mazeWarGame = new MazeWarGame(M);
-        mazeWarGame.update(M.keyboard);
-        mazeWarGame.render();
+        mazeWarGame.tick();
+        mazeWarGame.draw();
     }
 
 }

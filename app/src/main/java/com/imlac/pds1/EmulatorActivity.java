@@ -118,6 +118,17 @@ public class EmulatorActivity extends Activity {
                 else if (ctrl[K_A])  key=' '; else if (ctrl[K_B])  key='F';
                 else if (ctrl[K_C])  key='E'; else if (ctrl[K_D])  key='Q';
                 machine.keyboard = (key!=0) ? (key|0x8000) : 0;
+                // Also push directly into MazeWarGame input fields
+                if (demos != null) {
+                    MazeWarGame mwg = demos.getMazeWarGame();
+                    if (mwg != null) {
+                        mwg.iUp    = ctrl[K_UP];
+                        mwg.iDown  = ctrl[K_DN];
+                        mwg.iLeft  = ctrl[K_LT];
+                        mwg.iRight = ctrl[K_RT];
+                        mwg.iFire  = ctrl[K_A] || ctrl[K_B];
+                    }
+                }
 
                 // Run MP only when not halted
                 if (!machine.mp_halt && machine.mp_run) {
@@ -197,11 +208,22 @@ public class EmulatorActivity extends Activity {
     @SuppressWarnings("ClickableViewAccessibility")
     private void wireDpad(int id, int ki) {
         View v = findViewById(id);
-        if (v==null) return;
+        if (v == null) return;
         v.setOnTouchListener((vv, ev) -> {
-            boolean down = ev.getAction()==MotionEvent.ACTION_DOWN||ev.getAction()==MotionEvent.ACTION_MOVE;
-            ctrl[ki] = down;
-            vv.setAlpha(down ? 0.45f : 1.0f);
+            switch (ev.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                case MotionEvent.ACTION_MOVE:
+                    ctrl[ki] = true;
+                    vv.setAlpha(0.45f);
+                    break;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_POINTER_UP:
+                case MotionEvent.ACTION_CANCEL:
+                default:
+                    ctrl[ki] = false;
+                    vv.setAlpha(1.0f);
+                    break;
+            }
             return true;
         });
     }
