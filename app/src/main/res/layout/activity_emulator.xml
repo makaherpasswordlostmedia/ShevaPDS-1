@@ -132,7 +132,38 @@
                     android:text="GAMES" android:textColor="#4488FF"
                     android:textSize="8sp" android:fontFamily="monospace"
                     android:backgroundTint="#05050F"/>
-            </LinearLayout>
+        </LinearLayout>
+
+        <!-- MULTIPLAYER HOST / JOIN / CANCEL -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="2dp">
+            <Button android:id="@+id/btn_host"
+                android:layout_width="0dp" android:layout_height="24dp"
+                android:layout_weight="1"
+                android:text="HOST"
+                android:textColor="#FFFF00" android:textSize="7sp"
+                android:fontFamily="monospace"
+                android:backgroundTint="#1A1A00"
+                android:layout_marginEnd="1dp"/>
+            <Button android:id="@+id/btn_join"
+                android:layout_width="0dp" android:layout_height="24dp"
+                android:layout_weight="1"
+                android:text="JOIN"
+                android:textColor="#00FFFF" android:textSize="7sp"
+                android:fontFamily="monospace"
+                android:backgroundTint="#001A1A"
+                android:layout_marginEnd="1dp"/>
+            <Button android:id="@+id/btn_netcancel"
+                android:layout_width="0dp" android:layout_height="24dp"
+                android:layout_weight="1"
+                android:text="DISC"
+                android:textColor="#FF4444" android:textSize="7sp"
+                android:fontFamily="monospace"
+                android:backgroundTint="#150000"/>
+        </LinearLayout>
 
             <!-- DIVIDER -->
             <View android:layout_width="match_parent" android:layout_height="1dp"
