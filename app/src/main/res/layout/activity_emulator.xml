@@ -330,7 +330,72 @@
 
             </LinearLayout>
 
-            <!-- KEY HINT -->
+            <!-- CHAT PANEL (shown when connected) -->
+            <LinearLayout
+                android:id="@+id/panel_chat"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:layout_marginTop="3dp">
+
+                <!-- Chat log (last 4 lines) -->
+                <TextView
+                    android:id="@+id/tv_chat_log"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text=""
+                    android:textColor="#005500"
+                    android:textSize="7sp"
+                    android:fontFamily="monospace"
+                    android:background="#030803"
+                    android:padding="2dp"
+                    android:gravity="bottom"/>
+
+                <!-- Chat input row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="22dp"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="1dp">
+                    <EditText
+                        android:id="@+id/et_chat"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:textColor="#00AA22"
+                        android:textSize="8sp"
+                        android:fontFamily="monospace"
+                        android:background="#050F05"
+                        android:padding="2dp"
+                        android:inputType="text"
+                        android:maxLines="1"
+                        android:hint="chat..."
+                        android:textColorHint="#112211"/>
+                    <Button
+                        android:id="@+id/btn_chat_send"
+                        android:layout_width="36dp"
+                        android:layout_height="match_parent"
+                        android:text="▶"
+                        android:textColor="#00FF41"
+                        android:textSize="9sp"
+                        android:backgroundTint="#001800"
+                        android:padding="0dp"/>
+                </LinearLayout>
+
+                <!-- Net status bar -->
+                <TextView
+                    android:id="@+id/tv_net_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="● OFFLINE"
+                    android:textColor="#220000"
+                    android:textSize="7sp"
+                    android:fontFamily="monospace"
+                    android:layout_marginTop="1dp"/>
+            </LinearLayout>
+
+        <!-- KEY HINT -->
             <TextView
                 android:id="@+id/tv_input_hint"
                 android:layout_width="match_parent"
