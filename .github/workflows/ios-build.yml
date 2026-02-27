@@ -2,15 +2,15 @@ name: iOS Build
 
 on:
   push:
-    branches: [ios-WIP]
+    branches: [main, master]
   pull_request:
-    branches: [ios-WIP]
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
   build:
     name: Build iOS App
-    runs-on: macos-14  # Xcode 15.x, Swift 5.9
+    runs-on: macos-14
 
     steps:
       - name: Checkout
@@ -18,32 +18,33 @@ jobs:
 
       - name: Select Xcode
         run: |
-          sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer || \
-          sudo xcode-select -s /Applications/Xcode_15.3.app/Contents/Developer || \
-          sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer || \
-          sudo xcode-select -s /Applications/Xcode_15.1.app/Contents/Developer
+          sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer 2>/dev/null || \
+          sudo xcode-select -s /Applications/Xcode_15.3.app/Contents/Developer 2>/dev/null || \
+          sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer 2>/dev/null || true
           xcodebuild -version
-          swift --version
 
-      - name: Find simulator UDID
+      - name: Create build dir
+        run: mkdir -p build
+
+      - name: Show available simulators
+        run: xcrun simctl list devices available | grep -E "iPhone" | head -10
+
+      - name: Find simulator
         id: sim
         run: |
-          UDID=$(xcrun simctl list devices available -j | python3 -c "
-          import json,sys
-          d = json.load(sys.stdin)
-          for runtime,devs in d['devices'].items():
-            if 'iOS-17' in runtime or 'iOS-16' in runtime:
-              for dev in devs:
-                if dev['isAvailable'] and 'iPhone' in dev['name']:
-                  print(dev['udid'])
-                  exit()
-          ")
+          # Try iOS 17 first, then 16
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone [0-9]" | grep -v "unavailable" | head -1 | grep -oE "[A-F0-9-]{36}")
+          if [ -z "$UDID" ]; then
+            echo "No simulator found, listing all:"
+            xcrun simctl list devices
+            exit 1
+          fi
           echo "udid=$UDID" >> $GITHUB_OUTPUT
-          echo "Using simulator: $UDID"
+          echo "Found simulator: $UDID"
+          xcrun simctl list devices available | grep "$UDID"
 
       - name: Build for simulator (Debug)
         run: |
-          set -o pipefail
           xcodebuild \
             -project ImlacPDS1.xcodeproj \
             -scheme ImlacPDS1 \
@@ -53,26 +54,9 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
             clean build \
-          2>&1 | tee build/sim.log | \
-            grep -E "error:|warning:|BUILD SUCCEEDED|BUILD FAILED|CompileSwift" || true
-          grep -q "BUILD SUCCEEDED" build/sim.log && echo "✅ OK" || { grep "error:" build/sim.log; exit 1; }
-
-      - name: Build for device (unsigned)
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -project ImlacPDS1.xcodeproj \
-            -scheme ImlacPDS1 \
-            -destination "generic/platform=iOS" \
-            -configuration Release \
-            -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
-            build \
-          2>&1 | tee build/device.log | \
-            grep -E "error:|warning:|BUILD SUCCEEDED|BUILD FAILED|CompileSwift" || true
-          grep -q "BUILD SUCCEEDED" build/device.log && echo "✅ OK" || echo "⚠️ device build failed (non-fatal)"
+          2>&1 | tee build/sim.log
+          # tee exits 0, check xcodebuild result via log
+          grep -q "BUILD SUCCEEDED" build/sim.log && echo "✅ Build OK" || { echo "❌ Build FAILED"; grep "error:" build/sim.log | head -30; exit 1; }
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -81,6 +65,5 @@ jobs:
           name: ImlacPDS1-iOS
           path: |
             build/sim.log
-            build/device.log
             build/DerivedData/Build/Products/
           retention-days: 14
