@@ -115,6 +115,7 @@
                 <Button android:id="@+id/btn_demo_bounce"    style="@style/DemoBtn" android:text="BNCE"/>
                 <Button android:id="@+id/btn_demo_maze"      style="@style/DemoBtn" android:text="MAZE"/>
                 <Button android:id="@+id/btn_demo_spacewar"  style="@style/DemoBtn" android:text="SWAR"/>
+                <Button android:id="@+id/btn_snake"          style="@style/DemoBtn" android:text="SNAKE"/>
             </LinearLayout>
 
             <!-- MAZE WAR + GAMES -->
