@@ -416,15 +416,23 @@ public class Demos {
     private void demoSnake() {
         if (!snInit) snakeInit();
 
-        // Read input (WASD)
-        int kbd = M.keyboard & 0x7F;
-        if (kbd != 0) M.keyboard = 0;
-        switch (kbd) {
-            case 'W': case 'w': if (snDir != 2) snNDir = 0; break;
-            case 'D': case 'd': if (snDir != 3) snNDir = 1; break;
-            case 'S': case 's': if (snDir != 0) snNDir = 2; break;
-            case 'A': case 'a': if (snDir != 1) snNDir = 3; break;
-            case 'R': case 'r': snakeInit(); break; // restart
+        // Read input — check both "just pressed" (low byte) and "held" (bit15)
+        int kbdRaw = M.keyboard;
+        int kbd = kbdRaw & 0x7F;
+
+        if (snDead) {
+            // Any key press restarts
+            if (kbdRaw != 0) { M.keyboard = 0; snakeInit(); return; }
+        } else {
+            // Direction: accept both held (0x8000) and pressed
+            if (kbdRaw != 0) M.keyboard = 0;
+            switch (kbd) {
+                case 'W': case 'w': if (snDir != 2) snNDir = 0; break;
+                case 'D': case 'd': if (snDir != 3) snNDir = 1; break;
+                case 'S': case 's': if (snDir != 0) snNDir = 2; break;
+                case 'A': case 'a': if (snDir != 1) snNDir = 3; break;
+                case ' ': case 'R': case 'r': snakeInit(); break;
+            }
         }
 
         // Game tick: advance snake every SN_SPEED frames
