@@ -3,6 +3,7 @@ package com.imlac.pds1;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.*;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -10,6 +11,8 @@ import android.view.*;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.Toast;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import android.view.ViewGroup;
@@ -41,6 +44,8 @@ public class EmulatorActivity extends Activity {
     // Virtual controller
     private final boolean[] ctrl = new boolean[8];
     private static final int K_UP=0,K_DN=1,K_LT=2,K_RT=3,K_A=4,K_B=5,K_C=6,K_D=7;
+
+    private static final int REQ_OPEN_FILE = 42;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -259,21 +264,96 @@ public class EmulatorActivity extends Activity {
 
     private void showGameMenu() {
         List<GameLoader.Game> list = gameLoader.getGames();
-        String[] items = new String[list.size()+3];
-        items[0] = "+ New game";
-        items[1] = "Example: Counter";
-        items[2] = "Example: Draw Box";
-        for (int i=0;i<list.size();i++) items[i+3] = list.get(i).name;
+        String[] items = new String[list.size() + 4];
+        items[0] = "📂 Load file (.rim/.bin/.hex/.asm)";
+        items[1] = "+ New game (assembly editor)";
+        items[2] = "Example: Counter";
+        items[3] = "Example: Draw Box";
+        for (int i = 0; i < list.size(); i++) items[i + 4] = list.get(i).name;
 
         new AlertDialog.Builder(this)
             .setTitle("Games / Programs")
-            .setItems(items, (d,w) -> {
-                if (w==0) showEditorDialog(null);
-                else if (w==1) showEditorDialog(new GameLoader.Game("counter",GameLoader.EXAMPLE_COUNTER,"Binary counter"));
-                else if (w==2) showEditorDialog(new GameLoader.Game("drawbox",GameLoader.EXAMPLE_DRAW_BOX,"Draw a box"));
-                else showGameOptions(list.get(w-3));
+            .setItems(items, (d, w) -> {
+                if      (w == 0) openFilePicker();
+                else if (w == 1) showEditorDialog(null);
+                else if (w == 2) showEditorDialog(new GameLoader.Game("counter", GameLoader.EXAMPLE_COUNTER, "Binary counter"));
+                else if (w == 3) showEditorDialog(new GameLoader.Game("drawbox", GameLoader.EXAMPLE_DRAW_BOX, "Draw a box"));
+                else showGameOptions(list.get(w - 4));
             })
-            .setNegativeButton("Close",null).show();
+            .setNegativeButton("Close", null).show();
+    }
+
+    private void openFilePicker() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("*/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        // Show common Imlac file types in description
+        String[] mimeTypes = {"application/octet-stream", "text/plain", "text/x-asm"};
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+        startActivityForResult(Intent.createChooser(intent, "Open Imlac program (.rim .bin .hex .asm)"), REQ_OPEN_FILE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQ_OPEN_FILE || resultCode != RESULT_OK || data == null) return;
+
+        Uri uri = data.getData();
+        if (uri == null) return;
+
+        // Read file bytes
+        byte[] bytes = readUri(uri);
+        if (bytes == null) {
+            Toast.makeText(this, "Cannot read file", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Get filename for format detection
+        String filename = "unknown.bin";
+        android.database.Cursor cursor = getContentResolver().query(uri, null, null, null, null);
+        if (cursor != null) {
+            int nameCol = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+            if (cursor.moveToFirst() && nameCol >= 0) filename = cursor.getString(nameCol);
+            cursor.close();
+        }
+
+        loadFileIntoMachine(filename, bytes);
+    }
+
+    private byte[] readUri(Uri uri) {
+        try {
+            InputStream is = getContentResolver().openInputStream(uri);
+            if (is == null) return null;
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = is.read(buf)) != -1) out.write(buf, 0, n);
+            is.close();
+            return out.toByteArray();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void loadFileIntoMachine(String filename, byte[] bytes) {
+        machine.reset();
+        int startAddr = machine.loadAuto(filename, bytes);
+
+        if (startAddr < 0) {
+            Toast.makeText(this, "Unknown format: " + filename, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        machine.mp_pc   = startAddr;
+        machine.mp_halt = false;
+        machine.mp_run  = true;
+        demos.setDemo(Demos.Type.USER_ASM);
+        startMP();
+
+        String name = filename.length() > 20 ? filename.substring(0, 20) : filename;
+        Toast.makeText(this,
+            "Loaded: " + name + "\nStart: " + String.format("%04X", startAddr) + "  Size: " + bytes.length + "b",
+            Toast.LENGTH_LONG).show();
     }
 
     private void showGameOptions(GameLoader.Game g) {

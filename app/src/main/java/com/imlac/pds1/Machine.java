@@ -531,4 +531,94 @@ public class Machine {
 
         return addr - baseAddr;
     }
+
+    // ── File loaders ──────────────────────────────────────────
+
+    /**
+     * Load RIM (Read-In Mode) tape format.
+     * PDS-1 RIM: pairs of 16-bit words big-endian: address, then data.
+     * Ends when address word has bit 15 set (leader/trailer).
+     * Returns start address (first address seen), or -1 on error.
+     */
+    public int loadRim(byte[] data) {
+        if (data == null || data.length < 4) return -1;
+        int startAddr = -1;
+        int i = 0;
+        // Skip leader (0xFF bytes or 0x00 bytes)
+        while (i < data.length && (data[i] == (byte)0xFF || data[i] == 0x00)) i++;
+        while (i + 3 < data.length) {
+            int addr = ((data[i] & 0xFF) << 8) | (data[i+1] & 0xFF);
+            int word = ((data[i+2] & 0xFF) << 8) | (data[i+3] & 0xFF);
+            i += 4;
+            if ((addr & 0x8000) != 0) break; // end marker
+            addr &= ADDR_MASK;
+            if (addr < MEM_SIZE) {
+                mem[addr] = word & WORD_MASK;
+                if (startAddr < 0) startAddr = addr;
+            }
+        }
+        return startAddr;
+    }
+
+    /**
+     * Load flat binary — 16-bit big-endian words, loaded starting at baseAddr.
+     * Returns number of words loaded.
+     */
+    public int loadBin(byte[] data, int baseAddr) {
+        if (data == null) return 0;
+        int count = 0;
+        for (int i = 0; i + 1 < data.length && baseAddr + count < MEM_SIZE; i += 2, count++) {
+            mem[baseAddr + count] = (((data[i] & 0xFF) << 8) | (data[i+1] & 0xFF)) & WORD_MASK;
+        }
+        return count;
+    }
+
+    /**
+     * Load Intel HEX format (common for PDP/Imlac dumps online).
+     * Returns start address or -1.
+     */
+    public int loadHex(String hex) {
+        if (hex == null) return -1;
+        int startAddr = -1;
+        for (String rawLine : hex.split("\n")) {
+            String line = rawLine.trim();
+            if (!line.startsWith(":") || line.length() < 11) continue;
+            int byteCount  = Integer.parseInt(line.substring(1, 3), 16);
+            int address    = Integer.parseInt(line.substring(3, 7), 16);
+            int recordType = Integer.parseInt(line.substring(7, 9), 16);
+            if (recordType == 1) break; // EOF
+            if (recordType != 0) continue; // skip non-data
+            for (int i = 0; i < byteCount - 1; i += 2) {
+                int hi = Integer.parseInt(line.substring(9 + i*2,     11 + i*2),     16);
+                int lo = Integer.parseInt(line.substring(11 + i*2,    13 + i*2),     16);
+                int wordAddr = (address / 2) + (i / 2);
+                if (wordAddr < MEM_SIZE) {
+                    mem[wordAddr] = ((hi << 8) | lo) & WORD_MASK;
+                    if (startAddr < 0) startAddr = wordAddr;
+                }
+            }
+        }
+        return startAddr;
+    }
+
+    /**
+     * Detect file format and load. Returns suggested PC start address.
+     * Supports: .rim, .bin, .hex, .imlac (assembly text)
+     */
+    public int loadAuto(String filename, byte[] data) {
+        String name = filename.toLowerCase();
+        if (name.endsWith(".hex")) {
+            return loadHex(new String(data));
+        } else if (name.endsWith(".rim") || name.endsWith(".tape")) {
+            return loadRim(data);
+        } else if (name.endsWith(".imlac") || name.endsWith(".asm") || name.endsWith(".s")) {
+            assemble(new String(data));
+            return 0x050;
+        } else {
+            // Try RIM first (has recognizable structure), then flat binary
+            int rimResult = loadRim(data);
+            if (rimResult >= 0) return rimResult;
+            return loadBin(data, 0x050) > 0 ? 0x050 : -1;
+        }
+    }
 }
