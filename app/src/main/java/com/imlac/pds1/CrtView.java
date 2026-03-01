@@ -117,17 +117,11 @@ public class CrtView extends GLSurfaceView implements GLSurfaceView.Renderer {
         m.dlClear();
         d.runCurrentDemo();
 
-        // Build vertex arrays
+        // Build and draw vectors — single pass, phosphor green
         buildBuffers(m);
 
-        // Draw glow pass (wide, semi-transparent) then core beam
-        if (nLine > 0) {
-            drawVectors(false, 6.0f);  // outer glow
-            drawVectors(false, 1.5f);  // core beam
-        }
-        if (nPt > 0) {
-            drawVectors(true, 3.0f);
-        }
+        if (nLine > 0) drawVectors(false, 1.5f);
+        if (nPt   > 0) drawVectors(true,  3.0f);
 
         // FPS
         fpsCnt++;
@@ -156,38 +150,37 @@ public class CrtView extends GLSurfaceView implements GLSurfaceView.Renderer {
             if (br < 10) continue;
 
             float brf = br / 255f;
-            // Phosphor green: r=0.08, g=1.0, b=0.25
-            float r = 0.08f * brf, g = brf, b = 0.25f * brf;
+            // Phosphor green core: bright green
+            float r = 0.1f * brf, g = 1.0f * brf, b = 0.3f * brf, a = brf;
 
-            float x1 = m.vx1[i] * scaleX - 1f;
-            float y1 = m.vy1[i] * scaleY - 1f;
+            float x1 =  m.vx1[i] * scaleX - 1f;
+            float y1 = -m.vy1[i] * scaleY + 1f;  // invert Y: PDS Y-up → GL Y-up but screen flipped
 
             if (m.vpt[i]) {
                 if (nPt + 2 < ptBuf.length) {
-                    ptBuf[nPt]   = x1; ptBuf[nPt+1] = y1;
-                    ptCol[nPt*2]   = r; ptCol[nPt*2+1] = g;
-                    ptCol[nPt*2+2] = b; ptCol[nPt*2+3] = 1f;
+                    ptBuf[nPt]     = x1; ptBuf[nPt+1]   = y1;
+                    ptCol[nPt*2]   = r;  ptCol[nPt*2+1] = g;
+                    ptCol[nPt*2+2] = b;  ptCol[nPt*2+3] = a;
                     nPt += 2;
                 }
             } else {
-                float x2 = m.vx2[i] * scaleX - 1f;
-                float y2 = m.vy2[i] * scaleY - 1f;
+                float x2 =  m.vx2[i] * scaleX - 1f;
+                float y2 = -m.vy2[i] * scaleY + 1f;
                 if (nLine + 4 < lineBuf.length) {
                     lineBuf[nLine]   = x1; lineBuf[nLine+1] = y1;
                     lineBuf[nLine+2] = x2; lineBuf[nLine+3] = y2;
                     int c = nLine * 2;
-                    lineCol[c]   = r; lineCol[c+1] = g; lineCol[c+2] = b; lineCol[c+3] = 1f;
-                    lineCol[c+4] = r; lineCol[c+5] = g; lineCol[c+6] = b; lineCol[c+7] = 1f;
+                    lineCol[c]   = r; lineCol[c+1] = g; lineCol[c+2] = b; lineCol[c+3] = a;
+                    lineCol[c+4] = r; lineCol[c+5] = g; lineCol[c+6] = b; lineCol[c+7] = a;
                     nLine += 4;
                 }
             }
         }
 
-        // Upload to NIO buffers
         vbLine.position(0); vbLine.put(lineBuf, 0, nLine).position(0);
         cbLine.position(0); cbLine.put(lineCol, 0, nLine*2).position(0);
-        vbPt.position(0);   vbPt.put(ptBuf, 0, nPt).position(0);
-        cbPt.position(0);   cbPt.put(ptCol, 0, nPt*2).position(0);
+        vbPt.position(0);   vbPt.put(ptBuf,   0, nPt).position(0);
+        cbPt.position(0);   cbPt.put(ptCol,   0, nPt*2).position(0);
     }
 
     private void drawVectors(boolean points, float lineWidth) {
