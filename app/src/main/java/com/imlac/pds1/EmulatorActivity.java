@@ -367,6 +367,12 @@ public class EmulatorActivity extends Activity {
         machine.dp_pc    = dpStart;
         machine.dp_halt  = false;
 
+        // Pre-run DP once to populate display list before first render
+        machine.dlClear();
+        for (int i = 0; i < 8192 && !machine.dp_halt; i++)
+            machine.dpStep();
+        int nvecLoaded = machine.nvec;
+
         // MP: only start if there's a real MP program (not just DP code at 0x050)
         int word50 = machine.mem[0x050] & 0xFFFF;
         int opc50  = (word50 >> 12) & 0xF;
@@ -387,7 +393,7 @@ public class EmulatorActivity extends Activity {
         Toast.makeText(this,
             "Loaded: " + name + "\nDP:" + String.format("%04X", dpStart)
             + (hasMP ? "  MP:" + String.format("%04X", startAddr) : "  (DP only)")
-            + "  " + bytes.length + "b",
+            + "  " + bytes.length + "b  nvec=" + nvecLoaded,
             Toast.LENGTH_LONG).show();
     }
 
